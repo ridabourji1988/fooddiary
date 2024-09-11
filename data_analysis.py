@@ -26,24 +26,47 @@ def prepare_data(entries):
 
 
 
+import plotly.express as px
+
+# Define a dictionary to map symptoms to emojis
+SYMPTOM_TO_EMOJI = {
+    "Nausées": "🤢",
+    "Diarrhée": "💩",
+    "Constipation": "🚽",
+    "Ballonnements": "🎈",
+    "Douleurs abdominales": "🔥",
+    "Brûlures d'estomac": "🔥",
+    "Reflux acide": "🌋",
+    "Perte d'appétit": "🍽️",
+    "Fatigue": "😴",
+    "Vomissement": "🤮"
+}
+
 def analyze_symptomes_timeline(df):
-    # Create the scatter plot
-    fig = px.scatter(df, x='date', y='intensite', color='symptome',
+    # S'assurer que la colonne date est bien en format datetime
+    df['date'] = pd.to_datetime(df['date'])
+
+    # Replace symptom names with corresponding emojis in a new column
+    df['emoji'] = df['symptome'].map(SYMPTOM_TO_EMOJI)
+
+    # Create the scatter plot with emojis as text
+    fig = px.scatter(df, x='date', y='intensite', 
+                     text='emoji',  # Use emoji instead of colors
                      hover_data=['aliments'],
                      title="Évolution des symptômes au fil du temps")
-    
-    # Update marker size
-    fig.update_traces(marker=dict(size=10))
-    
-    # Remove hours from the date format and set one tick per day
+
+    # Update the marker size
+    fig.update_traces(marker=dict(size=10), textposition='top center')
+
+    # Format the x-axis to show day-month-year without time
     fig.update_xaxes(
-        tickformat="%d %B %Y",  # Format date as 'day month year'
-        dtick=86400000.0  # Set tick every day (1 day = 86400000 ms)
+        tickformat="%d %B %Y",
+        dtick=86400000.0  # Set tick for each day
     )
-    
-    # Update hover mode to show the closest data point
-    fig.update_layout(hovermode="closest")
-    
+
+    # Update layout to remove color legends
+    fig.update_layout(hovermode="closest", showlegend=False)
+
     return fig
 
 
