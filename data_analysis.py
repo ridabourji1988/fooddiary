@@ -108,6 +108,48 @@ def analyse_mensuelle(user_email):
                                 labels=dict(x="Symptômes", y="Aliments", color="Corrélation"))
     st.plotly_chart(fig_correlation)
 
+def afficher_historique_calendrier(user_email):
+    st.subheader("Historique hebdomadaire")
+    
+    entries = get_entries(user_email)
+    df = pd.DataFrame(entries, columns=['date', 'aliments', 'symptomes'])
+    df['date'] = pd.to_datetime(df['date'])
+
+    # Sélection de la semaine
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday())
+    selected_week = st.date_input("Sélectionnez une semaine", start_of_week)
+    start_date = pd.to_datetime(selected_week - timedelta(days=selected_week.weekday()))
+    end_date = start_date + timedelta(days=6)
+
+    # Filtrer les données pour la semaine sélectionnée
+    week_data = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+
+    # Afficher le calendrier
+    for day in pd.date_range(start_date, end_date):
+        with st.expander(day.strftime("%A %d/%m"), expanded=True):
+            day_data = week_data[week_data['date'].dt.date == day.date()]
+            if not day_data.empty:
+                for _, row in day_data.iterrows():
+                    st.markdown("### Repas")
+                    for repas, aliments in row['aliments'].items():
+                        if aliments:
+                            st.markdown(f"**{repas}:** {', '.join(aliments)}")
+                    
+                    st.markdown("### Symptômes")
+                    symptomes = row['symptomes'].get('symptomes_specifiques', [])
+                    if symptomes:
+                        st.markdown(", ".join(symptomes))
+                    
+                    intensite = row['symptomes'].get('intensite_douleur', 'N/A')
+                    st.markdown(f"**Intensité:** {intensite}")
+                    
+                    # Ajouter une ligne de séparation
+                    st.markdown("---")
+            else:
+                st.info("Pas de données pour ce jour")
+
+
 if __name__ == "__main__":
     # Cette partie est utile pour tester le module indépendamment
     import sys
