@@ -73,6 +73,11 @@ def analyze_symptomes(entries):
     fig.update_yaxes(title="Fréquence")
     return fig
 
+import pandas as pd
+import plotly.express as px
+import numpy as np
+from collections import Counter
+
 def calculate_correlation(entries):
     """Calculate and display the correlation between foods and symptoms."""
     aliments_symptoms = {}
@@ -95,8 +100,11 @@ def calculate_correlation(entries):
     # Transpose the data to have symptoms on the x-axis and foods on the y-axis
     correlation_data = correlation_data.T
     
-    # Normalize the data for better visibility
-    correlation_data = correlation_data.div(correlation_data.sum(axis=1), axis=0)
+    # Ensure all values are numeric and handle any potential non-numeric values
+    correlation_data = correlation_data.apply(pd.to_numeric, errors='coerce')
+    
+    # Fill NaN values with zeros (or handle them as you prefer)
+    correlation_data = correlation_data.fillna(0)
     
     # Create the heatmap with symptoms on x-axis and aliments on y-axis
     fig = px.imshow(correlation_data, 
