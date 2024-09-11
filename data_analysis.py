@@ -74,7 +74,10 @@ def analyze_symptomes(entries):
     return fig
 
 def calculate_correlation(entries):
+    """Calculate and display the correlation between foods and symptoms."""
     aliments_symptoms = {}
+    
+    # Collect symptoms for each food
     for entry in entries:
         aliments = [item for sublist in entry[1].values() for item in sublist]
         symptoms = entry[2]['symptomes_specifiques']
@@ -83,12 +86,25 @@ def calculate_correlation(entries):
                 aliments_symptoms[aliment] = Counter()
             aliments_symptoms[aliment].update(symptoms)
     
+    # Create the correlation data frame
     all_symptoms = list(set([symptom for counters in aliments_symptoms.values() for symptom in counters]))
     correlation_data = pd.DataFrame({aliment: [counter.get(symptom, 0) for symptom in all_symptoms] 
                                      for aliment, counter in aliments_symptoms.items()}, 
                                     index=all_symptoms)
     
-    return correlation_data.div(correlation_data.sum(axis=1), axis=0)
+    # Transpose the data to have symptoms on the x-axis and foods on the y-axis
+    correlation_data = correlation_data.T
+    
+    # Normalize the data for better visibility
+    correlation_data = correlation_data.div(correlation_data.sum(axis=1), axis=0)
+    
+    # Create the heatmap with symptoms on x-axis and aliments on y-axis
+    fig = px.imshow(correlation_data, 
+                    title="Corrélation entre aliments et symptômes",
+                    labels=dict(x="Symptômes", y="Aliments", color="Corrélation"))
+
+    return fig
+
 
 def analyse_mensuelle(user_email):
     st.subheader("Analyse mensuelle")
