@@ -25,18 +25,22 @@ def prepare_data(entries):
     return pd.DataFrame(symptom_data)
 
 def analyze_symptomes_timeline(df):
+    # S'assurer que la colonne date est bien en format datetime
+    df['date'] = pd.to_datetime(df['date'])
+
     fig = px.scatter(df, x='date', y='intensite', color='symptome',
                      hover_data=['aliments'],
                      title="Évolution des symptômes au fil du temps")
     fig.update_traces(marker=dict(size=10))
-    
-    # Format the x-axis (date) to show as day-month-year
+
+    # Format de date jour mois année
     fig.update_xaxes(
-        dtick="M1", 
-        tickformat="%d %B %Y",  # This formats date as 'day month year', e.g., '11 September 2024'
-        title_text='Date'
+        dtick="M1",  # Pour forcer des ticks mensuels
+        tickformat="%d %B %Y",  # Format jour mois année
+        title_text='Date',
+        showticklabels=True  # S'assurer que les labels sont affichés
     )
-    
+
     fig.update_layout(hovermode="closest")
     return fig
 
