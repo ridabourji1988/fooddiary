@@ -29,6 +29,14 @@ def analyze_symptomes_timeline(df):
                      hover_data=['aliments'],
                      title="Évolution des symptômes au fil du temps")
     fig.update_traces(marker=dict(size=10))
+    
+    # Format the x-axis (date) to show as day-month-year
+    fig.update_xaxes(
+        dtick="M1", 
+        tickformat="%d %B %Y",  # This formats date as 'day month year', e.g., '11 September 2024'
+        title_text='Date'
+    )
+    
     fig.update_layout(hovermode="closest")
     return fig
 
