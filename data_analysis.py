@@ -46,7 +46,7 @@ def analyze_symptomes_timeline(df):
         hovermode="closest",
         legend=dict(
             orientation="h",  # Horizontal layout
-            yanchor="bottom",  # Anchor to the bottom
+            yanchor="top",  # Anchor to the bottom
             y=-0.3,  # Position slightly below the graph
             xanchor="center",  # Center the legend
             x=0.5  # Horizontal center of the graph
