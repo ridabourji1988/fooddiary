@@ -24,6 +24,8 @@ def prepare_data(entries):
     
     return pd.DataFrame(symptom_data)
 
+
+
 def analyze_symptomes_timeline(df):
     # Create the scatter plot
     fig = px.scatter(df, x='date', y='intensite', color='symptome',
@@ -40,7 +42,16 @@ def analyze_symptomes_timeline(df):
     )
     
     # Update hover mode to show the closest data point
-    fig.update_layout(hovermode="closest")
+    fig.update_layout(
+        hovermode="closest",
+        legend=dict(
+            orientation="h",  # Horizontal layout
+            yanchor="bottom",  # Anchor to the bottom
+            y=-0.3,  # Position slightly below the graph
+            xanchor="center",  # Center the legend
+            x=0.5  # Horizontal center of the graph
+        )
+    )
     
     return fig
 
