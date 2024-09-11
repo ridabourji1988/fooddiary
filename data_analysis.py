@@ -30,14 +30,14 @@ def prepare_data(entries):
         for symptome in symptomes_list:
             symptom_data.append({
                 'date': date,
-                'symptome': symptome,
+                'symptome': symptome.strip(),  # Remove leading/trailing spaces
                 'intensite': intensite,
                 'aliments': aliments_list
             })
     
     df = pd.DataFrame(symptom_data)
-    # Map symptoms to emojis
-    df['emoji'] = df['symptome'].map(SYMPTOM_TO_EMOJI)
+    # Replace symptom names with emojis, defaulting to an empty string if not found
+    df['emoji'] = df['symptome'].map(SYMPTOM_TO_EMOJI).fillna("❓")  # "❓" for unmapped symptoms
     return df
 
 def analyze_symptomes_timeline(df):
@@ -45,24 +45,29 @@ def analyze_symptomes_timeline(df):
     # Ensure the date is in datetime format
     df['date'] = pd.to_datetime(df['date'])
     
+    # Debugging: Check which symptoms are not being mapped
+    missing_emojis = df[df['emoji'] == "❓"]['symptome'].unique()
+    if len(missing_emojis) > 0:
+        st.write("These symptoms were not mapped to emojis:", missing_emojis)
+    
     # Create the scatter plot with emojis as text
     fig = px.scatter(df, x='date', y='intensite', 
                      text='emoji',  # Use emojis instead of colors
-                     hover_data=['aliments'],
+                     hover_data=['aliments', 'symptome'],  # Include symptom in hover
                      title="Évolution des symptômes au fil du temps")
-    
+
     # Update the marker size and text position
     fig.update_traces(marker=dict(size=10), textposition='top center')
-    
+
     # Format the x-axis to show the date in "day month year" format and set a tick per day
     fig.update_xaxes(
         tickformat="%d %B %Y",
         dtick=86400000.0  # Set a tick for each day (in milliseconds)
     )
-    
+
     # Update layout to remove legend and ensure closest hover mode
     fig.update_layout(hovermode="closest", showlegend=False)
-    
+
     return fig
 
 def analyze_aliments(entries):
