@@ -27,11 +27,22 @@ def prepare_data(entries):
 
 
 def analyze_symptomes_timeline(df):
+    # Create the scatter plot
     fig = px.scatter(df, x='date', y='intensite', color='symptome',
                      hover_data=['aliments'],
                      title="Évolution des symptômes au fil du temps")
+    
+    # Update marker size
     fig.update_traces(marker=dict(size=10))
+    
+    # Remove the hours and format dates to "day month year"
+    fig.update_xaxes(
+        tickformat="%d %B %Y"  # Format date as 'day month year'
+    )
+    
+    # Update hover mode to show closest data point
     fig.update_layout(hovermode="closest")
+    
     return fig
 
 
