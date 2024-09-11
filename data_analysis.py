@@ -35,12 +35,13 @@ def analyze_symptomes_timeline(df):
     # Update marker size
     fig.update_traces(marker=dict(size=10))
     
-    # Remove the hours and format dates to "day month year"
+    # Remove hours from the date format and set one tick per day
     fig.update_xaxes(
-        tickformat="%d %B %Y"  # Format date as 'day month year'
+        tickformat="%d %B %Y",  # Format date as 'day month year'
+        dtick=86400000.0  # Set tick every day (1 day = 86400000 ms)
     )
     
-    # Update hover mode to show closest data point
+    # Update hover mode to show the closest data point
     fig.update_layout(hovermode="closest")
     
     return fig
