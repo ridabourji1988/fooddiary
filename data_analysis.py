@@ -27,41 +27,11 @@ def prepare_data(entries):
 
 
 def analyze_symptomes_timeline(df):
-    # S'assurer que la colonne 'date' est bien au format datetime
-    df['date'] = pd.to_datetime(df['date'])
-
-    # Vérification rapide du contenu de la colonne 'date'
-    print(df['date'].head())
-
-    # Créer le graphique en utilisant des points (scatter plot)
-    fig = px.scatter(df, 
-                     x='date', 
-                     y='intensite', 
-                     color='symptome',
+    fig = px.scatter(df, x='date', y='intensite', color='symptome',
                      hover_data=['aliments'],
                      title="Évolution des symptômes au fil du temps")
-
-    # Mise à jour des traces (taille des marqueurs)
     fig.update_traces(marker=dict(size=10))
-
-    # Configuration des axes et formatage des dates
-    fig.update_xaxes(
-        dtick="M1",  # Ajuster la fréquence des ticks (ici un tick par mois)
-        tickformat="%d %B %Y",  # Format jour mois année, par exemple "11 Septembre 2024"
-        title_text='Date',  # Titre de l'axe des x
-        showticklabels=True  # Affichage des étiquettes
-    )
-
-    # Ajuster la plage des dates pour inclure toutes les dates présentes dans le DataFrame
-    fig.update_xaxes(range=[df['date'].min(), df['date'].max()])
-
-    # Ajouter un peu de marge au graphique pour éviter que les labels soient coupés
-    fig.update_layout(
-        margin=dict(l=40, r=40, t=40, b=40),  # Marges gauche, droite, haut, bas
-        height=500,  # Ajuster la hauteur du graphique
-        hovermode="closest"  # Activer le mode de survol le plus proche
-    )
-
+    fig.update_layout(hovermode="closest")
     return fig
 
 
