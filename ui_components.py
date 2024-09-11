@@ -228,7 +228,6 @@ def saisie_symptomes(existing_data):
     
     symptomes = {
         "Nausées 🤢": False,
-        "Vomissements": False,
         "Diarrhée 💩": False,
         "Constipation 🚽": False,
         "Ballonnements 🎈": False,
