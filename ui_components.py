@@ -5,24 +5,7 @@ from collections import Counter
 import unicodedata
 from database import get_entries
 
-# Dictionary mapping symptoms to their corresponding emojis
-SYMPTOM_TO_EMOJI = {
-    "nausees": "🤢",
-    "diarrhee": "💩",
-    "constipation": "🚽",
-    "ballonnements": "🎈",
-    "douleurs abdominales": "🔥",
-    "brulures d'estomac": "🔥",
-    "reflux acide": "🌋",
-    "perte d'appetit": "🍽️",
-    "fatigue": "😴",
-    "vomissement": "🤮"
-}
 
-def normalize_text(text):
-    """Remove accents, make lowercase, and remove extra spaces."""
-    text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
-    return text.lower().strip()
 
 def prepare_data(entries):
     """Prepare the data from entries into a DataFrame."""
@@ -48,35 +31,28 @@ def prepare_data(entries):
     df['emoji'] = df['symptome'].map(SYMPTOM_TO_EMOJI).fillna("❓")
     return df
 
+import plotly.express as px
+
 def analyze_symptomes_timeline(df):
-    """Create a scatter plot for the evolution of symptoms over time using emojis."""
-    # Ensure the date is in datetime format
-    df['date'] = pd.to_datetime(df['date'])
-    
-    # Debugging: Check which symptoms are not being mapped
-    missing_emojis = df[df['emoji'] == "❓"]['symptome'].unique()
-    if len(missing_emojis) > 0:
-        st.write("These symptoms were not mapped to emojis:", pd.DataFrame(missing_emojis, columns=["value"]))
-    
-    # Create the scatter plot with emojis as text
-    fig = px.scatter(df, x='date', y='intensite', 
-                     text='emoji',  # Use emojis instead of colors
-                     hover_data=['aliments', 'symptome'],  # Include symptom in hover
+    # Create the scatter plot
+    fig = px.scatter(df, x='date', y='intensite', color='symptome',
+                     hover_data=['aliments'],
                      title="Évolution des symptômes au fil du temps")
-
-    # Update the marker size and text position
-    fig.update_traces(marker=dict(size=10), textposition='top center')
-
-    # Format the x-axis to show the date in "day month year" format and set a tick per day
+    
+    # Update marker size
+    fig.update_traces(marker=dict(size=10))
+    
+    # Remove hours from the date format and set one tick per day
     fig.update_xaxes(
-        tickformat="%d %B %Y",
-        dtick=86400000.0  # Set a tick for each day (in milliseconds)
+        tickformat="%d %B %Y",  # Format date as 'day month year'
+        dtick=86400000.0  # Set tick every day (1 day = 86400000 ms)
     )
-
-    # Update layout to remove legend and ensure closest hover mode
-    fig.update_layout(hovermode="closest", showlegend=False)
-
+    
+    # Update hover mode to show the closest data point
+    fig.update_layout(hovermode="closest")
+    
     return fig
+
 
 def analyze_aliments(entries):
     """Create a bar chart showing the frequency of consumed foods."""
