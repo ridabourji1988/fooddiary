@@ -122,10 +122,8 @@ def analyse_mensuelle(user_email):
     correlation_data = calculate_correlation(entries)
     fig_correlation = px.imshow(correlation_data, 
                                 title="Corrélation entre aliments et symptômes",
-                                labels=dict(x="Aliments", y="Symptômes", color="Corrélation")
-                               )
-    
-        st.plotly_chart(fig_correlation)
+                                labels=dict(x="Symptômes", y="Aliments", color="Corrélation"))
+    st.plotly_chart(fig_correlation)
 
 if __name__ == "__main__":
     # Cette partie est utile pour tester le module indépendamment
