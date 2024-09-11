@@ -49,7 +49,7 @@ def analyze_symptomes_timeline(df):
             yanchor="top",  # Anchor to the bottom
             y=-0.9,  # Position slightly below the graph
             xanchor="center",  # Center the legend
-            x=0.5  # Horizontal center of the graph
+            x=1  # Horizontal center of the graph
         )
     )
     
