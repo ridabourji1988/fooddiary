@@ -1,256 +1,175 @@
 import streamlit as st
-from streamlit_tags import st_tags
-from datetime import datetime, timedelta
 import pandas as pd
-from database import get_aliments, add_aliment, add_entry, get_entries, update_entry, delete_entry
-
-def saisie_quotidienne(user_email):
-    st.subheader("Saisie quotidienne")
-    date = st.date_input("Date")
-    
-    # Fetch existing entry for the selected date
-    entries = get_entries(user_email)
-    existing_entry = next((entry for entry in entries if entry[0] == date), None)
-
-    aliments_existants = get_aliments()
-    repas = {"Petit Déjeuner": [], "Déjeuner": [], "Goûter": [], "Dîner": []}
-    symptomes_data = {"symptomes_specifiques": [], "intensite_douleur": 0, "autres_symptomes": ""}
-
-    if existing_entry:
-        st.info(f"Données existantes trouvées pour le {date}")
-        _, existing_aliments, existing_symptomes = existing_entry
-        repas = existing_aliments
-        symptomes_data = existing_symptomes
-
-    # Aliments input
-    for repas_nom in repas.keys():
-        st.subheader(repas_nom)
-        aliments_saisis = st_tags(
-            label=f"Entrez les aliments pour {repas_nom}:",
-            text="Appuyez sur Entrée pour ajouter",
-            value=repas[repas_nom],
-            suggestions=aliments_existants,
-            maxtags=-1,
-            key=f"tags_{repas_nom}"
-        )
-        repas[repas_nom] = aliments_saisis
-        
-        for aliment in aliments_saisis:
-            add_aliment(aliment)
-
-    # Symptoms input
-    symptomes_data = saisie_symptomes(symptomes_data)
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("Enregistrer" if not existing_entry else "Mettre à jour"):
-            if existing_entry:
-                update_entry(user_email, date, repas, symptomes_data)
-                st.success("Entrée mise à jour avec succès!")
-            else:
-                add_entry(user_email, date, repas, symptomes_data)
-                st.success("Entrée enregistrée avec succès!")
-
-    with col2:
-        if existing_entry and st.button("Réinitialiser"):
-            delete_entry(user_email, date)
-            st.success("Entrée réinitialisée. Veuillez rafraîchir la page.")
-            st.rerun()
-
-    with col3:
-        if st.button("Effacer le formulaire"):
-            st.session_state['form_cleared'] = True
-            st.rerun()
-
-    if st.session_state.get('form_cleared', False):
-        for key in st.session_state.keys():
-            if key.startswith('tags_') or key.startswith('symptom_'):
-                del st.session_state[key]
-        st.session_state['form_cleared'] = False
-
-
-def saisie_symptomes(existing_data):
-    st.subheader("Symptômes/Douleurs")
-    
-    symptomes = {
-        "Nausées 🤢": False,
-        "Diarrhée 💩": False,
-        "Constipation 🚽": False,
-        "Ballonnements 🎈": False,
-        "Douleurs abdominales 🔥": False,
-        "Brûlures d'estomac 🔥": False,
-        "Reflux acide 🌋": False,
-        "Perte d'appétit 🍽️": False,
-        "Fatigue 😴": False,
-        "Vomissement 🤮": False
-    }
-    
-    cols = st.columns(2)
-    for i, (symptome, _) in enumerate(symptomes.items()):
-        with cols[i % 2]:
-            symptomes[symptome] = st.checkbox(symptome, 
-                                              value=symptome in existing_data['symptomes_specifiques'],
-                                              key=f"symptom_{symptome}")
-    
-    intensite_douleur = st.slider("Intensité de la douleur", 0, 10, 
-                                  value=existing_data['intensite_douleur'],
-                                  key="symptom_intensity")
-    
-    autres_symptomes = st.text_area("Autres symptômes ou commentaires", 
-                                    value=existing_data['autres_symptomes'],
-                                    key="symptom_notes")
-    
-    return {
-        "symptomes_specifiques": [s for s, v in symptomes.items() if v],
-        "intensite_douleur": intensite_douleur,
-        "autres_symptomes": autres_symptomes
-    }
-
-
-import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
+import plotly.express as px
+from collections import Counter
+import unicodedata
 from database import get_entries
 
-def afficher_historique_calendrier(user_email):
-    st.subheader("Historique hebdomadaire")
-    
-    entries = get_entries(user_email)
-    df = pd.DataFrame(entries, columns=['date', 'aliments', 'symptomes'])
-    df['date'] = pd.to_datetime(df['date'])
+# Dictionary mapping symptoms to their corresponding emojis
+SYMPTOM_TO_EMOJI = {
+    "nausees": "🤢",
+    "diarrhee": "💩",
+    "constipation": "🚽",
+    "ballonnements": "🎈",
+    "douleurs abdominales": "🔥",
+    "brulures d'estomac": "🔥",
+    "reflux acide": "🌋",
+    "perte d'appetit": "🍽️",
+    "fatigue": "😴",
+    "vomissement": "🤮"
+}
 
-    # Sélection de la semaine
-    today = datetime.now().date()
-    start_of_week = today - timedelta(days=today.weekday())
-    selected_week = st.date_input("Sélectionnez une semaine", start_of_week)
-    start_date = pd.to_datetime(selected_week - timedelta(days=selected_week.weekday()))
-    end_date = start_date + timedelta(days=6)
+def normalize_text(text):
+    """Remove accents, make lowercase, and remove extra spaces."""
+    text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
+    return text.lower().strip()
 
-    # Filtrer les données pour la semaine sélectionnée
-    week_data = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
-
-    # Afficher le calendrier
-    for day in pd.date_range(start_date, end_date):
-        with st.expander(day.strftime("%A %d/%m"), expanded=True):
-            day_data = week_data[week_data['date'].dt.date == day.date()]
-            if not day_data.empty:
-                for _, row in day_data.iterrows():
-                    st.markdown("### Repas")
-                    for repas, aliments in row['aliments'].items():
-                        if aliments:
-                            st.markdown(f"**{repas}:** {', '.join(aliments)}")
-                    
-                    st.markdown("### Symptômes")
-                    symptomes = row['symptomes'].get('symptomes_specifiques', [])
-                    if symptomes:
-                        st.markdown(", ".join(symptomes))
-                    
-                    intensite = row['symptomes'].get('intensite_douleur', 'N/A')
-                    st.markdown(f"**Intensité:** {intensite}")
-                    
-                    # Ajouter une ligne de séparation
-                    st.markdown("---")
-            else:
-                st.info("Pas de données pour ce jour")
-                
-                
-import streamlit as st
-from streamlit_tags import st_tags
-from datetime import datetime
-from database import get_aliments, add_aliment, add_entry, get_entries, update_entry, delete_entry
-
-def saisie_quotidienne(user_email):
-    st.subheader("Saisie quotidienne")
-    date = st.date_input("Date")
-    
-    # Fetch existing entry for the selected date
-    entries = get_entries(user_email)
-    existing_entry = next((entry for entry in entries if entry[0] == date), None)
-
-    aliments_existants = get_aliments()
-    repas = {"Petit Déjeuner": [], "Déjeuner": [], "Goûter": [], "Dîner": []}
-    symptomes_data = {"symptomes_specifiques": [], "intensite_douleur": 0, "autres_symptomes": ""}
-
-    if existing_entry:
-        st.info(f"Données existantes trouvées pour le {date}")
-        _, existing_aliments, existing_symptomes = existing_entry
-        repas = existing_aliments
-        symptomes_data = existing_symptomes
-
-    for repas_nom in repas.keys():
-        st.subheader(repas_nom)
-        aliments_saisis = st_tags(
-            label=f"Entrez les aliments pour {repas_nom}:",
-            text="Appuyez sur Entrée pour ajouter",
-            value=repas[repas_nom],
-            suggestions=aliments_existants,
-            maxtags=-1,
-            key=f"tags_{repas_nom}"
-        )
-        repas[repas_nom] = aliments_saisis
+def prepare_data(entries):
+    """Prepare the data from entries into a DataFrame."""
+    symptom_data = []
+    for entry in entries:
+        date, aliments, symptomes = entry
+        symptomes_list = symptomes['symptomes_specifiques']
+        intensite = symptomes['intensite_douleur']
+        aliments_list = [item for sublist in aliments.values() for item in sublist]
         
-        for aliment in aliments_saisis:
-            add_aliment(aliment)
-
-    symptomes_data = saisie_symptomes(symptomes_data)
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("Enregistrer" if not existing_entry else "Mettre à jour"):
-            if existing_entry:
-                update_entry(user_email, date, repas, symptomes_data)
-                st.success("Entrée mise à jour avec succès!")
-            else:
-                add_entry(user_email, date, repas, symptomes_data)
-                st.success("Entrée enregistrée avec succès!")
-
-    with col2:
-        if existing_entry and st.button("Réinitialiser"):
-            delete_entry(user_email, date)
-            st.success("Entrée réinitialisée. Veuillez rafraîchir la page.")
-            st.rerun()
-
-    with col3:
-        if st.button("Effacer le formulaire"):
-            st.session_state['form_cleared'] = True
-            st.rerun()
-
-    if st.session_state.get('form_cleared', False):
-        for key in st.session_state.keys():
-            if key.startswith('tags_'):
-                del st.session_state[key]
-        st.session_state['form_cleared'] = False
-
-def saisie_symptomes(existing_data):
-    st.subheader("Symptômes/Douleurs")
+        for symptome in symptomes_list:
+            # Normalize the symptom name
+            normalized_symptom = normalize_text(symptome)
+            symptom_data.append({
+                'date': date,
+                'symptome': normalized_symptom,  # Use the normalized symptom
+                'intensite': intensite,
+                'aliments': aliments_list
+            })
     
-    symptomes = {
-        "Nausées 🤢": False,
-        "Vomissements": False,
-        "Diarrhée 💩": False,
-        "Constipation 🚽": False,
-        "Ballonnements 🎈": False,
-        "Douleurs abdominales 🔥": False,
-        "Brûlures d'estomac 🔥": False,
-        "Reflux acide 🌋": False,
-        "Perte d'appétit 🍽️": False,
-        "Fatigue 😴": False,
-        "Vomissement 🤮": False
-    }
+    df = pd.DataFrame(symptom_data)
+    # Replace symptom names with emojis, defaulting to "❓" if not found
+    df['emoji'] = df['symptome'].map(SYMPTOM_TO_EMOJI).fillna("❓")
+    return df
+
+def analyze_symptomes_timeline(df):
+    """Create a scatter plot for the evolution of symptoms over time using emojis."""
+    # Ensure the date is in datetime format
+    df['date'] = pd.to_datetime(df['date'])
     
-    cols = st.columns(2)
-    for i, (symptome, _) in enumerate(symptomes.items()):
-        with cols[i % 2]:
-            symptomes[symptome] = st.checkbox(symptome, value=symptome in existing_data['symptomes_specifiques'])
+    # Debugging: Check which symptoms are not being mapped
+    missing_emojis = df[df['emoji'] == "❓"]['symptome'].unique()
+    if len(missing_emojis) > 0:
+        st.write("These symptoms were not mapped to emojis:", pd.DataFrame(missing_emojis, columns=["value"]))
     
-    intensite_douleur = st.slider("Intensité de la douleur", 0, 10, existing_data['intensite_douleur'])
+    # Create the scatter plot with emojis as text
+    fig = px.scatter(df, x='date', y='intensite', 
+                     text='emoji',  # Use emojis instead of colors
+                     hover_data=['aliments', 'symptome'],  # Include symptom in hover
+                     title="Évolution des symptômes au fil du temps")
+
+    # Update the marker size and text position
+    fig.update_traces(marker=dict(size=10), textposition='top center')
+
+    # Format the x-axis to show the date in "day month year" format and set a tick per day
+    fig.update_xaxes(
+        tickformat="%d %B %Y",
+        dtick=86400000.0  # Set a tick for each day (in milliseconds)
+    )
+
+    # Update layout to remove legend and ensure closest hover mode
+    fig.update_layout(hovermode="closest", showlegend=False)
+
+    return fig
+
+def analyze_aliments(entries):
+    """Create a bar chart showing the frequency of consumed foods."""
+    all_aliments = [aliment for entry in entries for repas in entry[1].values() for aliment in repas]
+    aliment_counts = Counter(all_aliments)
     
-    autres_symptomes = st.text_area("Autres symptômes ou commentaires", existing_data['autres_symptomes'])
+    # Create the bar chart
+    fig = px.bar(x=list(aliment_counts.keys()), y=list(aliment_counts.values()),
+                 title="Fréquence des aliments consommés")
     
-    return {
-        "symptomes_specifiques": [s for s, v in symptomes.items() if v],
-        "intensite_douleur": intensite_douleur,
-        "autres_symptomes": autres_symptomes
-    }
+    # Label the axes
+    fig.update_xaxes(title="Aliments")
+    fig.update_yaxes(title="Fréquence")
+    
+    return fig
+
+def analyze_symptomes(entries):
+    """Create a bar chart showing the frequency of symptoms."""
+    all_symptoms = [symptom for entry in entries for symptom in entry[2]['symptomes_specifiques']]
+    symptom_counts = Counter(all_symptoms)
+    
+    # Create the bar chart
+    fig = px.bar(x=list(symptom_counts.keys()), y=list(symptom_counts.values()),
+                 title="Fréquence des symptômes")
+    
+    # Label the axes
+    fig.update_xaxes(title="Symptômes")
+    fig.update_yaxes(title="Fréquence")
+    
+    return fig
+
+def calculate_correlation(entries):
+    """Calculate and display the correlation between foods and symptoms."""
+    aliments_symptoms = {}
+    
+    # Collect symptoms for each food
+    for entry in entries:
+        aliments = [item for sublist in entry[1].values() for item in sublist]
+        symptoms = entry[2]['symptomes_specifiques']
+        for aliment in aliments:
+            if aliment not in aliments_symptoms:
+                aliments_symptoms[aliment] = Counter()
+            aliments_symptoms[aliment].update(symptoms)
+    
+    # Create the correlation data frame
+    all_symptoms = list(set([symptom for counters in aliments_symptoms.values() for symptom in counters]))
+    correlation_data = pd.DataFrame({aliment: [counter.get(symptom, 0) for symptom in all_symptoms] 
+                                     for aliment, counter in aliments_symptoms.items()}, 
+                                    index=all_symptoms)
+    
+    return correlation_data.div(correlation_data.sum(axis=1), axis=0)
+
+def analyse_mensuelle(user_email):
+    """Main function to run the monthly analysis."""
+    st.subheader("Analyse mensuelle")
+    
+    # Get entries for the user
+    entries = get_entries(user_email)
+    
+    if not entries:
+        st.warning("Aucune donnée n'est disponible pour l'analyse.")
+        return
+    
+    # Prepare data
+    df = prepare_data(entries)
+
+    # 1. Graphique des symptômes par jour avec emojis
+    fig_symptoms = analyze_symptomes_timeline(df)
+    st.plotly_chart(fig_symptoms)
+
+    # 2. Fréquence des aliments consommés
+    fig_aliments = analyze_aliments(entries)
+    st.plotly_chart(fig_aliments)
+
+    # 3. Fréquence des symptômes
+    fig_symptom_freq = analyze_symptomes(entries)
+    st.plotly_chart(fig_symptom_freq)
+
+    # 4. Corrélation entre aliments et symptômes
+    correlation_data = calculate_correlation(entries)
+    fig_correlation = px.imshow(correlation_data, 
+                                title="Corrélation entre aliments et symptômes",
+                                labels=dict(x="Symptômes", y="Aliments", color="Corrélation"))
+    st.plotly_chart(fig_correlation)
+
+if __name__ == "__main__":
+    # This part is useful for testing the module independently
+    import sys
+    sys.path.append('..')  # Ensure the parent folder is in the PYTHONPATH
+    
+    # Simulate a Streamlit session for testing
+    if 'user_email' not in st.session_state:
+        st.session_state['user_email'] = "test@example.com"
+    
+    # Run the monthly analysis for the test user
+    analyse_mensuelle(st.session_state['user_email'])
